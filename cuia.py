@@ -235,3 +235,82 @@ def histogramahsv(imagen, solotono=True):
         ax3.get_yaxis().set_visible(False)
         ax3.plot(histov)
     plt.show()
+
+class matrizDeTransformacion:
+    def __init__(self, matrix=None):
+        # Inicializa la matriz como una identidad 4x4 si no se especifica ninguna
+        self.matrix = matrix if matrix is not None else np.eye(4)
+
+    @staticmethod
+    def traslacion(tx, ty, tz):
+        mat = np.eye(4)
+        mat[:3, 3] = [tx, ty, tz]
+        return matrizDeTransformacion(mat)
+
+    @staticmethod
+    def rotacion(axis, angulo):
+        mat = np.eye(4)
+        c, s = np.cos(angulo), np.sin(angulo)
+
+        if axis == 'x':
+            mat[:3, :3] = [[1, 0, 0],
+                           [0, c, -s],
+                           [0, s, c]]
+        elif axis == 'y':
+            mat[:3, :3] = [[c, 0, s],
+                           [0, 1, 0],
+                           [-s, 0, c]]
+        elif axis == 'z':
+            mat[:3, :3] = [[c, -s, 0],
+                           [s, c, 0],
+                           [0, 0, 1]]
+        else:
+            raise ValueError("El eje debe ser 'x', 'y' o 'z'.")
+        
+        return matrizDeTransformacion(mat)
+
+    @staticmethod
+    def escalado(sx=1, sy=1, sz=1):
+        mat = np.eye(4)
+        mat[0, 0] = sx
+        mat[1, 1] = sy
+        mat[2, 2] = sz
+        return matrizDeTransformacion(mat)
+
+    @staticmethod
+    def rotacion_con_cuaternion(q):
+        x, y, z, w = q
+
+        # Normaliza el cuaternión
+        norm = np.sqrt(x**2 + y**2 + z**2 + w**2)
+        x, y, z, w = x / norm, y / norm, z / norm, w / norm
+
+        # Calcula la matriz de rotación 3x3
+        matriz_rotacion = np.array([
+            [1 - 2*(y**2 + z**2), 2*(x*y - z*w), 2*(x*z + y*w)],
+            [2*(x*y + z*w), 1 - 2*(x**2 + z**2), 2*(y*z - x*w)],
+            [2*(x*z - y*w), 2*(y*z + x*w), 1 - 2*(x**2 + y**2)]
+        ])
+
+        # Convierte a matriz homogénea
+        matriz = np.eye(4)
+        matriz[:3, :3] = matriz_rotacion
+
+        return matrizDeTransformacion(matriz)
+    
+    def __matmul__(self, other):
+        # Operador @ para la composición de matrices.
+        if not isinstance(other, matrizDeTransformacion):
+            raise TypeError("El operador solo puede aplicarse entre instancias de matrizDeTransformacion.")
+        return matrizDeTransformacion(np.matmul(self.matrix, other.matrix))
+
+    def __array__(self):
+        # Convierte la instancia a un np.array.
+        return self.matrix
+
+    @property
+    def shape(self):
+        return(self.matrix.shape)
+    
+    def __repr__(self):
+        return f"matrizDeTransformacion(\n{self.matrix}\n)"
