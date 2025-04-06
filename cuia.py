@@ -4,6 +4,10 @@ import matplotlib as mpl
 from matplotlib import pyplot as plt
 import time
 import os
+from wgpu.gui.offscreen import WgpuCanvas # Para el render offscreen
+import pygfx as gfx
+import pylinalg as la # Álgebra lineal para las transformaciones geométricas
+
 
 def popup(titulo, imagen):
     cv2.imshow(titulo, imagen)
@@ -330,9 +334,8 @@ class modeloGLTF:
     def cargar(self, ruta_modelo):
         if self.model_obj:
             self.model_obj.remove()
-        self.gltf = asyncio.run(gfx.load_gltf_async(ruta_modelo))
+        self.gltf = gfx.load_gltf(ruta_modelo)
         self.seleccionar_escena() # Selecciona la escena por defecto dentro del modelo GLTF
-        self.rotar((np.pi/2.0, 0, 0)) # Rotar el modelo 90 grados en X para que coincida con Blender
         self.skeleton_helper = gfx.SkeletonHelper(self.model_obj)
         self.skeleton_helper.visible = False
 
@@ -351,7 +354,11 @@ class modeloGLTF:
             raise ValueError("No hay modelo GLTF cargado")
 
     def escalar(self, escala):
-        self.model_obj.local.scale = (escala, escala, escala)
+        if isinstance(escala, tuple):
+            self.model_obj.local.scale = (escala[0], escala[1], escala[2])
+        else:
+            # Si solo se indica un número se hace un escalado unidorme
+            self.model_obj.local.scale = (escala, escala, escala)
 
     def rotar(self, rotacion):
         q = la.quat_from_euler(rotacion)
@@ -374,7 +381,7 @@ class modeloGLTF:
             nombre = animation.name if animation.name else f"Anim_{i}"
             nombres.append(nombre)
             
-        return names
+        return nombres
 
     def animar(self, nombre):
         if not self.gltf or not self.gltf.animations:
@@ -413,12 +420,12 @@ class escenaPYGFX:
             action.play()
             self.mixer.update(0.0)
 
-    def ilumina_modelo(self, modelo):
+    def ilumina_modelo(self, modelo, intensidad=0.5):
         radio = modelo.model_obj.get_world_bounding_sphere()[3]
         posicion = modelo.model_obj.local.position
         luces = [(1, 1, 1), (1, -1, 1), (-1, 1, 1), (-1, -1, 1), (1, 1, -1), (1, -1, -1), (-1, 1, -1), (-1, -1, -1)]
         for posluz in luces:
-            light = gfx.DirectionalLight(color=(1, 1, 1), intensity=0.6)
+            light = gfx.DirectionalLight(color=(1, 1, 1), intensity=intensidad)
             pos = np.sum([[posicion], [posluz]], axis=0)
             pos = pos / np.linalg.norm(pos) * 2 * radio
             light.local.position = pos
