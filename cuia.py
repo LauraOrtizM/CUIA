@@ -4,9 +4,9 @@ import matplotlib as mpl
 from matplotlib import pyplot as plt
 import time
 import os
-from wgpu.gui.offscreen import WgpuCanvas # Para el render offscreen
-import pygfx as gfx
-import pylinalg as la # Álgebra lineal para las transformaciones geométricas
+#from wgpu.gui.offscreen import WgpuCanvas # Para el render offscreen
+#import pygfx as gfx
+#import pylinalg as la # Álgebra lineal para las transformaciones geométricas
 
 
 def popup(titulo, imagen):
