@@ -395,6 +395,7 @@ try:
             return False
 except:
     print("Omitiendo dependencias del módulo pygfx y pylinalg")
+    print("Instalar con    pip install pygfx pylinalg")
 
 try:
     from wgpu.gui.offscreen import WgpuCanvas # Para el render offscreen
@@ -448,3 +449,4 @@ try:
             return np.array(self.canvas.draw())
 except:
     print("Omitiendo dependencias del módulo wgpu.gui.offscreen")
+    print("Instalar con    pip install glfw wgpu gltflib imageio")
