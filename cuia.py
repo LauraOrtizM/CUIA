@@ -4,10 +4,6 @@ import matplotlib as mpl
 from matplotlib import pyplot as plt
 import time
 import os
-#from wgpu.gui.offscreen import WgpuCanvas # Para el render offscreen
-#import pygfx as gfx
-#import pylinalg as la # Álgebra lineal para las transformaciones geométricas
-
 
 def popup(titulo, imagen):
     cv2.imshow(titulo, imagen)
@@ -320,127 +316,135 @@ class matrizDeTransformacion:
         return f"matrizDeTransformacion(\n{self.matrix}\n)"
 
 
-
-class modeloGLTF:
-    def __init__(self, ruta_modelo=None):
-        self.model_obj = None  
-        self.gltf = None
-        self.current_action = None
-        if ruta_modelo:
-            self.cargar(ruta_modelo)
-        self.indice_animacion = None
-        self.skeleton_helper = None
-
-    def cargar(self, ruta_modelo):
-        if self.model_obj:
-            self.model_obj.remove()
-        self.gltf = gfx.load_gltf(ruta_modelo)
-        self.seleccionar_escena() # Selecciona la escena por defecto dentro del modelo GLTF
-        self.skeleton_helper = gfx.SkeletonHelper(self.model_obj)
-        self.skeleton_helper.visible = False
-
-    def seleccionar_escena(self, indice=None):
-        if self.gltf:
-            if indice is None:
-                if self.gltf.scene is not None:
-                    self.model_obj = self.gltf.scene
+try:
+    import pygfx as gfx
+    import pylinalg as la # Álgebra lineal para las transformaciones geométricas
+    class modeloGLTF:
+        def __init__(self, ruta_modelo=None):
+            self.model_obj = None  
+            self.gltf = None
+            self.current_action = None
+            if ruta_modelo:
+                self.cargar(ruta_modelo)
+            self.indice_animacion = None
+            self.skeleton_helper = None
+    
+        def cargar(self, ruta_modelo):
+            if self.model_obj:
+                self.model_obj.remove()
+            self.gltf = gfx.load_gltf(ruta_modelo)
+            self.seleccionar_escena() # Selecciona la escena por defecto dentro del modelo GLTF
+            self.skeleton_helper = gfx.SkeletonHelper(self.model_obj)
+            self.skeleton_helper.visible = False
+    
+        def seleccionar_escena(self, indice=None):
+            if self.gltf:
+                if indice is None:
+                    if self.gltf.scene is not None:
+                        self.model_obj = self.gltf.scene
+                    else:
+                        self.model_obj = self.gltf.scenes[0]
+                elif indice >= 0 and indice < len(self.gltf.scenes):
+                    self.model_obj = self.gltf.scenes[indice]
                 else:
-                    self.model_obj = self.gltf.scenes[0]
-            elif indice >= 0 and indice < len(self.gltf.scenes):
-                self.model_obj = self.gltf.scenes[indice]
+                    raise ValueError("Índice de escena fuera de rango")
             else:
-                raise ValueError("Índice de escena fuera de rango")
-        else:
-            raise ValueError("No hay modelo GLTF cargado")
-
-    def escalar(self, escala):
-        if isinstance(escala, tuple):
-            self.model_obj.local.scale = (escala[0], escala[1], escala[2])
-        else:
-            # Si solo se indica un número se hace un escalado unidorme
-            self.model_obj.local.scale = (escala, escala, escala)
-
-    def rotar(self, rotacion):
-        q = la.quat_from_euler(rotacion)
-        self.model_obj.local.rotation = la.quat_mul(q, self.model_obj.local.rotation)
-
-    def trasladar(self, posicion):
-        self.model_obj.local.position = posicion
-
-    def flotar(self):
-        deltaZ = -self.model_obj.get_world_bounding_box()[0][2]
-        pos = np.array(self.model_obj.local.position)
-        pos[2] += deltaZ
-        self.trasladar(pos)
-
-    def animaciones(self):
-        if not self.gltf or not self.gltf.animations:
-            return []
-        nombres = []
-        for i, animation in enumerate(self.gltf.animations):
-            nombre = animation.name if animation.name else f"Anim_{i}"
-            nombres.append(nombre)
+                raise ValueError("No hay modelo GLTF cargado")
+    
+        def escalar(self, escala):
+            if isinstance(escala, tuple):
+                self.model_obj.local.scale = (escala[0], escala[1], escala[2])
+            else:
+                # Si solo se indica un número se hace un escalado unidorme
+                self.model_obj.local.scale = (escala, escala, escala)
+    
+        def rotar(self, rotacion):
+            q = la.quat_from_euler(rotacion)
+            self.model_obj.local.rotation = la.quat_mul(q, self.model_obj.local.rotation)
+    
+        def trasladar(self, posicion):
+            self.model_obj.local.position = posicion
+    
+        def flotar(self):
+            deltaZ = -self.model_obj.get_world_bounding_box()[0][2]
+            pos = np.array(self.model_obj.local.position)
+            pos[2] += deltaZ
+            self.trasladar(pos)
+    
+        def animaciones(self):
+            if not self.gltf or not self.gltf.animations:
+                return []
+            nombres = []
+            for i, animation in enumerate(self.gltf.animations):
+                nombre = animation.name if animation.name else f"Anim_{i}"
+                nombres.append(nombre)
+                
+            return nombres
+    
+        def animar(self, nombre):
+            if not self.gltf or not self.gltf.animations:
+                return False
+    
+            for i, animation in enumerate(self.gltf.animations):
+                nombre_animacion = animation.name if animation.name else f"Anim_{i}"
+                if nombre_animacion == nombre:
+                    self.indice_animacion = i
+                    self.current_action = animation  # Guardar la animación actual
+                    return True
             
-        return nombres
-
-    def animar(self, nombre):
-        if not self.gltf or not self.gltf.animations:
             return False
+except:
+    print("Omitiendo dependencias del módulo pygfx y pylinalg")
 
-        for i, animation in enumerate(self.gltf.animations):
-            nombre_animacion = animation.name if animation.name else f"Anim_{i}"
-            if nombre_animacion == nombre:
-                self.indice_animacion = i
-                self.current_action = animation  # Guardar la animación actual
-                return True
-        
-        return False
-
-class escenaPYGFX:
-    def __init__(self, fov, ancho, alto):
-        self.mixer = gfx.AnimationMixer()
-        self.clock = gfx.Clock()
-        self.scene = gfx.Scene()
-        self.scene.background = None  # Fondo transparente    
-        self.canvas = WgpuCanvas(size=(ancho, alto))
-        self.renderer = gfx.WgpuRenderer(self.canvas)
-        self.camera = gfx.PerspectiveCamera(fov, aspect=ancho/alto, width=ancho, height=alto, depth_range=(0.1, 1000))
-
-    def iluminar(self, intensidad=1.0):
-        ambient_light = gfx.AmbientLight(intensidad)
-        self.scene.add(ambient_light)
-        
-    def agregar_modelo(self, modelo):
-        skeleton_helper = gfx.SkeletonHelper(modelo.model_obj)
-        skeleton_helper.visible = False
-        self.scene.add(skeleton_helper)
-        self.scene.add(modelo.model_obj)
-        if modelo.indice_animacion is not None:  # Cambiar la condición
-            action = self.mixer.clip_action(modelo.current_action)  # Usar la animación guardada
-            action.play()
-            self.mixer.update(0.0)
-
-    def ilumina_modelo(self, modelo, intensidad=0.5):
-        radio = modelo.model_obj.get_world_bounding_sphere()[3]
-        posicion = modelo.model_obj.local.position
-        luces = [(1, 1, 1), (1, -1, 1), (-1, 1, 1), (-1, -1, 1), (1, 1, -1), (1, -1, -1), (-1, 1, -1), (-1, -1, -1)]
-        for posluz in luces:
-            light = gfx.DirectionalLight(color=(1, 1, 1), intensity=intensidad)
-            pos = np.sum([[posicion], [posluz]], axis=0)
-            pos = pos / np.linalg.norm(pos) * 2 * radio
-            light.local.position = pos
-            light.look_at(posicion)
-            self.scene.add(light)
-
-    def actualizar_camara(self, matriz):
-        self.camera.local.matrix = matriz
-
-    def mostrar_ejes(self, size=1.0, thickness=2):
-        axis = gfx.AxesHelper(size, thickness)
-        self.scene.add(axis)
-
-    def render(self):
-        dt = self.clock.get_delta()
-        self.mixer.update(dt)  # Importante: actualizar el mixer antes de renderizar
-        self.renderer.render(self.scene, self.camera)
-        return np.array(self.canvas.draw())
+try:
+    from wgpu.gui.offscreen import WgpuCanvas # Para el render offscreen
+    class escenaPYGFX:
+        def __init__(self, fov, ancho, alto):
+            self.mixer = gfx.AnimationMixer()
+            self.clock = gfx.Clock()
+            self.scene = gfx.Scene()
+            self.scene.background = None  # Fondo transparente    
+            self.canvas = WgpuCanvas(size=(ancho, alto))
+            self.renderer = gfx.WgpuRenderer(self.canvas)
+            self.camera = gfx.PerspectiveCamera(fov, aspect=ancho/alto, width=ancho, height=alto, depth_range=(0.1, 1000))
+    
+        def iluminar(self, intensidad=1.0):
+            ambient_light = gfx.AmbientLight(intensidad)
+            self.scene.add(ambient_light)
+            
+        def agregar_modelo(self, modelo):
+            skeleton_helper = gfx.SkeletonHelper(modelo.model_obj)
+            skeleton_helper.visible = False
+            self.scene.add(skeleton_helper)
+            self.scene.add(modelo.model_obj)
+            if modelo.indice_animacion is not None:  # Cambiar la condición
+                action = self.mixer.clip_action(modelo.current_action)  # Usar la animación guardada
+                action.play()
+                self.mixer.update(0.0)
+    
+        def ilumina_modelo(self, modelo, intensidad=0.5):
+            radio = modelo.model_obj.get_world_bounding_sphere()[3]
+            posicion = modelo.model_obj.local.position
+            luces = [(1, 1, 1), (1, -1, 1), (-1, 1, 1), (-1, -1, 1), (1, 1, -1), (1, -1, -1), (-1, 1, -1), (-1, -1, -1)]
+            for posluz in luces:
+                light = gfx.DirectionalLight(color=(1, 1, 1), intensity=intensidad)
+                pos = np.sum([[posicion], [posluz]], axis=0)
+                pos = pos / np.linalg.norm(pos) * 2 * radio
+                light.local.position = pos
+                light.look_at(posicion)
+                self.scene.add(light)
+    
+        def actualizar_camara(self, matriz):
+            self.camera.local.matrix = matriz
+    
+        def mostrar_ejes(self, size=1.0, thickness=2):
+            axis = gfx.AxesHelper(size, thickness)
+            self.scene.add(axis)
+    
+        def render(self):
+            dt = self.clock.get_delta()
+            self.mixer.update(dt)  # Importante: actualizar el mixer antes de renderizar
+            self.renderer.render(self.scene, self.camera)
+            return np.array(self.canvas.draw())
+except:
+    print("Omitiendo dependencias del módulo wgpu.gui.offscreen")
